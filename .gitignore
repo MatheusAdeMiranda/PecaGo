@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# Virtualenv and secrets
+.venv/
+.env
+.env.*
+!.env.example
+
+# Local data
+*.db
+*.sqlite3
+.logs/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+
+# Local tooling
+.tools/
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,29 @@
+services:
+  db:
+    image: postgres:16
+    container_name: autoparts_db
+    environment:
+      POSTGRES_DB: autoparts_mvp
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    container_name: autoparts_api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/autoparts_mvp
+      SECRET_KEY: super-secret-mvp-key
+      ACCESS_TOKEN_EXPIRE_MINUTES: 720
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+
+volumes:
+  postgres_data:

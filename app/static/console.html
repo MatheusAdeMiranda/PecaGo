@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PecaGo | Console</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-lockup">
+        <img src="/static/logo.svg" alt="Logo PecaGo" class="brand-logo" />
+        <div>
+          <div class="brand-name">PecaGo</div>
+          <div class="brand-subtitle">Console operacional da demonstracao</div>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a class="nav-link" href="/">Home</a>
+        <a class="nav-link is-active" href="/console">Console</a>
+        <a class="nav-link" href="/docs" target="_blank" rel="noreferrer">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero-grid">
+      <div class="surface hero-panel hero-dark">
+        <div class="eyebrow">Operacao ao vivo</div>
+        <h1 class="display-title" style="max-width:12ch">Comandos claros, por persona, sem poluicao visual.</h1>
+        <p class="lead">
+          Reorganizei o console em grupos de Setup, Loja, Cliente e Entrega.
+          Essa divisao ajuda na UX porque acompanha a forma como o usuario pensa a jornada.
+        </p>
+        <div class="actions">
+          <button class="btn-accent" onclick="seedDemo()">Popular dados demo</button>
+          <button class="btn-secondary" onclick="refreshSessionStatus('session-user-role','token-box')">Atualizar sessao</button>
+          <a class="button-link btn-primary" href="/">Voltar para a home</a>
+        </div>
+        <div class="hero-signal-row">
+          <div class="signal-chip">
+            <div class="signal-label">Setup</div>
+            <div class="signal-value">Perfis e autenticacao</div>
+          </div>
+          <div class="signal-chip">
+            <div class="signal-label">Compra</div>
+            <div class="signal-value">Busca e pedido guiados</div>
+          </div>
+          <div class="signal-chip">
+            <div class="signal-label">Entrega</div>
+            <div class="signal-value">Tracking e conclusao</div>
+          </div>
+        </div>
+        <div class="console-subnav">
+          <a class="subnav-link quick-link" href="#setup">Setup</a>
+          <a class="subnav-link quick-link" href="#store">Loja</a>
+          <a class="subnav-link quick-link" href="#customer">Cliente</a>
+          <a class="subnav-link quick-link" href="#delivery">Entrega</a>
+        </div>
+        <div id="console-refresh-note" class="refresh-note">Snapshot aguardando sincronizacao</div>
+      </div>
+
+      <div class="surface hero-panel">
+        <div class="panel-stack">
+          <div class="insight-card">
+            <strong>Modo demo orientado a roteiro</strong>
+            <p class="muted">
+              A ideia aqui e reduzir atrito. Em poucos cliques da para entrar com o perfil certo,
+              criar o pedido e concluir a entrega mostrando a historia ponta a ponta.
+            </p>
+            <div class="badge-row">
+              <span class="badge badge-info">Setup</span>
+              <span class="badge badge-accent">Compra</span>
+              <span class="badge badge-success">Entrega</span>
+            </div>
+          </div>
+          <div class="status-card">
+            <strong>Usuarios demo</strong>
+            <div class="muted">
+              store@demo.com / 123456<br />
+              customer@demo.com / 123456<br />
+              delivery@demo.com / 123456
+            </div>
+          </div>
+          <div class="actions">
+            <button class="btn-secondary" onclick="fillStoreLogin()">Login loja demo</button>
+            <button class="btn-secondary" onclick="fillCustomerLogin()">Login cliente demo</button>
+            <button class="btn-secondary" onclick="fillDeliveryLogin()">Login entregador demo</button>
+          </div>
+          <div class="status-card">
+            <strong>Sessao atual</strong>
+            <div id="session-user-role" class="muted">Nenhum login ativo.</div>
+            <div id="token-box" class="token-box">Nenhum token ainda.</div>
+          </div>
+        </div>
+        <div id="seed-status" class="status"></div>
+      </div>
+    </section>
+
+    <section class="section console-layout">
+      <aside class="sidebar-stack">
+        <div class="surface content-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Apresentacao guiada</div>
+              <h2 class="section-title">Roteiro</h2>
+              <p class="muted">Sequencia recomendada para demonstrar o MVP.</p>
+            </div>
+          </div>
+          <div class="journey">
+            <div class="journey-step">
+              <div class="step-index">1</div>
+              <div>
+                <strong>Setup</strong>
+                <div class="muted">Popular base demo e entrar com um perfil.</div>
+              </div>
+            </div>
+            <div class="journey-step">
+              <div class="step-index">2</div>
+              <div>
+                <strong>Cliente</strong>
+                <div class="muted">Buscar a peca e criar o pedido.</div>
+              </div>
+            </div>
+            <div class="journey-step">
+              <div class="step-index">3</div>
+              <div>
+                <strong>Entrega</strong>
+                <div class="muted">Assumir a corrida e concluir o status.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="surface content-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Navegacao rapida</div>
+              <h2 class="section-title">Atalhos</h2>
+              <p class="muted">Cada etapa com acesso direto.</p>
+            </div>
+          </div>
+          <div class="quick-links">
+            <a class="button-link btn-secondary quick-link" href="#setup">Ir para Setup</a>
+            <a class="button-link btn-secondary quick-link" href="#store">Ir para Loja</a>
+            <a class="button-link btn-secondary quick-link" href="#customer">Ir para Cliente</a>
+            <a class="button-link btn-secondary quick-link" href="#delivery">Ir para Entrega</a>
+          </div>
+        </div>
+
+        <div class="surface content-card">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Monitoramento</div>
+              <h2 class="section-title">Snapshot operacional</h2>
+              <p class="muted">Visao rapida do pedido em foco e do estado atual da entrega.</p>
+            </div>
+          </div>
+          <div id="console-order-focus" class="result-card">Nenhum pedido carregado ainda.</div>
+          <div id="console-mini-kpis" class="mini-kpis" style="margin-top:12px"></div>
+          <div id="console-status-track" class="tracker" style="margin-top:12px"></div>
+        </div>
+      </aside>
+
+      <div class="persona-sections">
+        <section id="setup" class="surface persona-section">
+          <div class="persona-head">
+            <div>
+              <div class="section-kicker">Entrada na jornada</div>
+              <h2 class="section-title">Setup</h2>
+              <p class="muted">Cadastro e autenticacao.</p>
+            </div>
+            <span class="persona-label setup-label">Inicio da demo</span>
+          </div>
+          <div class="section-meta-row">
+            <span class="inline-kpi">Criar perfis</span>
+            <span class="inline-kpi">Salvar token</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-card">
+              <h3>Registrar usuario</h3>
+              <p class="helper-note">Crie novos perfis se quiser fugir dos dados demo.</p>
+              <label for="register-name">Nome</label>
+              <input id="register-name" value="Loja Centro" />
+              <label for="register-email">Email</label>
+              <input id="register-email" value="loja.nova@demo.com" />
+              <label for="register-password">Senha</label>
+              <input id="register-password" value="123456" />
+              <label for="register-role">Perfil</label>
+              <select id="register-role">
+                <option value="store">store</option>
+                <option value="customer">customer</option>
+                <option value="mechanic">mechanic</option>
+                <option value="delivery">delivery</option>
+              </select>
+              <button class="btn-primary" onclick="registerUser()">Registrar</button>
+              <div id="register-status" class="status"></div>
+            </div>
+
+            <div class="form-card">
+              <h3>Login</h3>
+              <p class="helper-note">O token e salvo no navegador para as acoes autenticadas.</p>
+              <label for="login-email">Email</label>
+              <input id="login-email" value="store@demo.com" />
+              <label for="login-password">Senha</label>
+              <input id="login-password" value="123456" />
+              <button class="btn-primary" onclick="login()">Entrar</button>
+              <div id="login-status" class="status"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="store" class="surface persona-section">
+          <div class="persona-head">
+            <div>
+              <div class="section-kicker">Seller flow</div>
+              <h2 class="section-title">Loja</h2>
+              <p class="muted">Cadastro do ponto de venda e do catalogo.</p>
+            </div>
+            <span class="persona-label">Seller flow</span>
+          </div>
+          <div class="section-meta-row">
+            <span class="inline-kpi">Criar loja</span>
+            <span class="inline-kpi">Publicar estoque</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-card">
+              <h3>Criar loja</h3>
+              <p class="helper-note">Use com um usuario do tipo <code>store</code>.</p>
+              <label for="store-name">Nome da loja</label>
+              <input id="store-name" value="AutoPecas Centro" />
+              <label for="store-address">Endereco</label>
+              <input id="store-address" value="Rua das Oficinas, 100" />
+              <label for="store-city">Cidade</label>
+              <input id="store-city" value="Sao Paulo" />
+              <label for="store-lat">Latitude</label>
+              <input id="store-lat" type="number" step="0.000001" value="-23.550520" />
+              <label for="store-lng">Longitude</label>
+              <input id="store-lng" type="number" step="0.000001" value="-46.633308" />
+              <button class="btn-primary" onclick="createStore()">Cadastrar loja</button>
+              <div id="store-status" class="status"></div>
+            </div>
+
+            <div class="form-card">
+              <h3>Cadastrar produto</h3>
+              <p class="helper-note">Use com uma loja ja criada.</p>
+              <label for="product-name">Nome</label>
+              <input id="product-name" value="Pastilha de Freio Dianteira" />
+              <label for="product-sku">SKU</label>
+              <input id="product-sku" value="PF-001" />
+              <label for="product-brand">Marca</label>
+              <input id="product-brand" value="Bosch" />
+              <label for="product-vehicle">Modelo do veiculo</label>
+              <input id="product-vehicle" value="Gol" />
+              <label for="product-price">Preco</label>
+              <input id="product-price" type="number" step="0.01" value="189.90" />
+              <label for="product-stock">Estoque</label>
+              <input id="product-stock" type="number" value="8" />
+              <button class="btn-primary" onclick="createProduct()">Cadastrar produto</button>
+              <div id="product-status" class="status"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="customer" class="surface persona-section">
+          <div class="persona-head">
+            <div>
+              <div class="section-kicker">Buyer flow</div>
+              <h2 class="section-title">Cliente</h2>
+              <p class="muted">Busca, pedido e consulta de historico.</p>
+            </div>
+            <span class="persona-label">Buyer flow</span>
+          </div>
+          <div class="section-meta-row">
+            <span class="inline-kpi">Buscar pecas</span>
+            <span class="inline-kpi">Criar pedido</span>
+            <span class="inline-kpi">Acompanhar historico</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-card">
+              <h3>Buscar pecas</h3>
+              <p class="helper-note">Busca por nome, SKU, marca ou modelo.</p>
+              <label for="search-query">Busca</label>
+              <input id="search-query" value="freio" />
+              <label for="search-city">Cidade</label>
+              <input id="search-city" value="Sao Paulo" />
+              <button class="btn-primary" onclick="searchProducts()">Buscar</button>
+              <div id="search-results" class="list-grid"></div>
+            </div>
+
+            <div class="form-card">
+              <h3>Criar pedido</h3>
+              <p class="helper-note">Entre como <code>customer</code> ou <code>mechanic</code>.</p>
+              <label for="order-store-id">Store ID</label>
+              <input id="order-store-id" type="number" />
+              <label for="order-product-id">Product ID</label>
+              <input id="order-product-id" type="number" />
+              <label for="order-quantity">Quantidade</label>
+              <input id="order-quantity" type="number" value="1" />
+              <label for="order-address">Endereco de entrega</label>
+              <input id="order-address" value="Av. Paulista, 1000" />
+              <button class="btn-primary" onclick="createOrder()">Criar pedido</button>
+              <div id="order-status" class="status"></div>
+            </div>
+
+            <div class="form-card">
+              <h3>Meus pedidos</h3>
+              <p class="helper-note">Lista os pedidos do usuario autenticado.</p>
+              <button class="btn-secondary" onclick="loadMyOrders()">Carregar meus pedidos</button>
+              <div id="orders-results" class="list-grid"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="delivery" class="surface persona-section">
+          <div class="persona-head">
+            <div>
+              <div class="section-kicker">Last mile</div>
+              <h2 class="section-title">Entrega</h2>
+              <p class="muted">Corridas disponiveis e evolucao do pedido.</p>
+            </div>
+            <span class="persona-label">Last mile</span>
+          </div>
+          <div class="section-meta-row">
+            <span class="inline-kpi">Assumir corrida</span>
+            <span class="inline-kpi">Atualizar status</span>
+          </div>
+          <div class="form-grid">
+            <div class="form-card">
+              <h3>Entregas disponiveis</h3>
+              <p class="helper-note">Entre como <code>delivery</code> para assumir corridas.</p>
+              <button class="btn-secondary" onclick="loadAvailableDeliveries()">Listar entregas</button>
+              <label for="assign-order-id">Order ID para assumir</label>
+              <input id="assign-order-id" type="number" />
+              <button class="btn-primary" onclick="assignDelivery()">Assumir entrega</button>
+              <div id="delivery-status" class="status"></div>
+              <div id="delivery-results" class="list-grid"></div>
+            </div>
+
+            <div class="form-card">
+              <h3>Atualizar status</h3>
+              <p class="helper-note">Loja e entregador podem mover o pedido entre etapas.</p>
+              <label for="status-order-id">Order ID</label>
+              <input id="status-order-id" type="number" value="1" />
+              <label for="status-value">Novo status</label>
+              <select id="status-value">
+                <option value="accepted">accepted</option>
+                <option value="preparing">preparing</option>
+                <option value="in_delivery">in_delivery</option>
+                <option value="delivered">delivered</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+              <button class="btn-primary" onclick="updateOrderStatus()">Atualizar status</button>
+              <div id="status-update-result" class="status"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/shared.js"></script>
+  <script src="/static/console.js"></script>
+</body>
+</html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PecaGo | Home</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand-lockup">
+        <img src="/static/logo.svg" alt="Logo PecaGo" class="brand-logo" />
+        <div>
+          <div class="brand-name">PecaGo</div>
+          <div class="brand-subtitle">Marketplace de autopecas com entrega sob demanda</div>
+        </div>
+      </div>
+      <nav class="nav-links">
+        <a class="nav-link is-active" href="/">Home</a>
+        <a class="nav-link" href="/console">Console</a>
+        <a class="nav-link" href="/docs" target="_blank" rel="noreferrer">Docs</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="page">
+    <section class="hero-grid">
+      <div class="surface hero-panel hero-dark">
+        <div class="eyebrow">Paleta focada em confianca, precisao e agilidade</div>
+        <h1 class="display-title">A peca certa, agora.</h1>
+        <p class="lead">
+          Reposicionei a interface com azul-marinho e grafite como base visual para transmitir
+          confianca e operacao tecnica, enquanto o cobre foi reservado para chamadas de acao
+          e pontos de urgencia. O resultado fica mais proximo do universo automotivo e mais elegante.
+        </p>
+        <div class="actions">
+          <button class="btn-accent" onclick="seedDemo()">Popular dados demo</button>
+          <button class="btn-secondary" onclick="refreshDashboard()">Atualizar painel</button>
+          <a class="button-link btn-primary" href="/console">Abrir console operacional</a>
+        </div>
+        <div class="hero-signal-row">
+          <div class="signal-chip">
+            <div class="signal-label">Busca local</div>
+            <div class="signal-value">Estoque perto da oficina</div>
+          </div>
+          <div class="signal-chip">
+            <div class="signal-label">Pedido</div>
+            <div class="signal-value">Compra em poucos cliques</div>
+          </div>
+          <div class="signal-chip">
+            <div class="signal-label">Entrega</div>
+            <div class="signal-value">Ultima milha sob demanda</div>
+          </div>
+        </div>
+        <div id="home-refresh-note" class="refresh-note">Painel aguardando sincronizacao</div>
+        <div id="metrics-grid" class="metric-grid"></div>
+      </div>
+
+      <div class="surface hero-panel">
+        <div class="panel-stack">
+          <div class="insight-card">
+            <strong>Direcao visual escolhida</strong>
+            <p class="muted">
+              Azul-marinho e grafite seguram a base de confianca e operacao tecnica.
+              O cobre aparece onde a interface precisa chamar decisao, urgencia e movimento.
+            </p>
+            <div class="badge-row">
+              <span class="badge badge-info">Marketplace B2B2C</span>
+              <span class="badge badge-accent">Autopecas</span>
+              <span class="badge badge-success">Entrega expressa</span>
+            </div>
+          </div>
+          <div class="summary-card">
+            <strong>Por que essa UX vende melhor a ideia</strong>
+            <p class="muted">
+              A home foca em narrativa, indicadores e valor percebido. A operacao fica separada no console
+              para reduzir carga cognitiva e manter a apresentacao principal mais limpa.
+            </p>
+          </div>
+          <div class="status-card">
+            <strong>Usuarios demo</strong>
+            <div id="demo-users-box" class="muted">
+              store@demo.com / 123456<br />
+              customer@demo.com / 123456<br />
+              delivery@demo.com / 123456
+            </div>
+          </div>
+          <div class="status-card">
+            <strong>Sessao atual</strong>
+            <div id="session-user-role" class="muted">Nenhum login ativo.</div>
+            <div id="token-box" class="token-box">Nenhum token ainda.</div>
+          </div>
+          <div class="status-card">
+            <strong>Modo demo pronto</strong>
+            <p class="muted">
+              Use a home para apresentar o valor e o console para executar a jornada sem ruido.
+            </p>
+            <div class="section-meta-row">
+              <span class="inline-kpi">Narrativa</span>
+              <span class="inline-kpi">Indicadores</span>
+              <span class="inline-kpi">Operacao</span>
+            </div>
+          </div>
+        </div>
+        <div id="seed-status" class="status"></div>
+      </div>
+    </section>
+
+    <section class="section ops-showcase">
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Camada logistica</div>
+            <h2 class="section-title">Mock de logistica urbana</h2>
+            <p class="muted">Uma leitura visual de loja, cliente e rota de entrega para deixar o produto mais tangivel.</p>
+          </div>
+        </div>
+        <div class="mock-map">
+          <div class="map-road road-a"></div>
+          <div class="map-road road-b"></div>
+          <div class="map-road road-c"></div>
+          <div class="map-path"></div>
+          <div class="map-node store">
+            <strong>Loja parceira</strong>
+            <div class="muted">AutoPecas Centro</div>
+          </div>
+          <div class="map-node courier">
+            <strong>Entregador</strong>
+            <div class="muted">Rota em andamento</div>
+          </div>
+          <div class="map-node customer">
+            <strong>Destino</strong>
+            <div class="muted">Oficina / cliente</div>
+          </div>
+          <div class="map-legend">
+            <div class="legend-chip"><span class="legend-dot"></span> Loja com estoque</div>
+            <div class="legend-chip"><span class="legend-dot is-success"></span> Entregador em rota</div>
+            <div class="legend-chip"><span class="legend-dot is-accent"></span> Destino do pedido</div>
+          </div>
+          <div class="map-pill">
+            <span class="live-dot"></span>
+            Corrida acompanhada em tempo real
+          </div>
+        </div>
+      </div>
+
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <div class="section-kicker">Leitura operacional</div>
+            <h2 class="section-title">Pedido em foco</h2>
+            <p class="muted">Tracker visual do estado mais recente para dar sensacao de sistema vivo.</p>
+          </div>
+        </div>
+        <div class="spotlight-grid">
+          <div id="order-spotlight" class="result-card">
+            Nenhum pedido em foco ainda.
+          </div>
+          <div id="logistics-mini-kpis" class="mini-kpis"></div>
+          <div id="order-state-track" class="tracker"></div>
+          <div id="home-ops-refresh" class="refresh-note">Aguardando dados do ultimo pedido</div>
+          <div class="glass-note">
+            <strong>Decisao de UX</strong>
+            <div class="muted">
+              Em vez de colocar mais formularios na home, o destaque aqui mostra contexto de operacao e mantem
+              a pagina principal mais elegante e mais facil de escanear.
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section dual-grid">
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Indicadores da operacao</h2>
+            <p class="muted">Cards compactos com leitura rapida para demo e pitch.</p>
+          </div>
+        </div>
+        <div id="recent-orders" class="list-grid"></div>
+      </div>
+
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Fluxo do produto</h2>
+            <p class="muted">A jornada foi organizada para explicar valor em poucos segundos.</p>
+          </div>
+        </div>
+        <div class="journey">
+          <div class="journey-step">
+            <div class="step-index">1</div>
+            <div>
+              <strong>Busca local</strong>
+              <div class="muted">Cliente ou mecanico encontra a peca com foco em disponibilidade e rapidez.</div>
+            </div>
+          </div>
+          <div class="journey-step">
+            <div class="step-index">2</div>
+            <div>
+              <strong>Pedido imediato</strong>
+              <div class="muted">O pedido nasce com contexto de loja, endereco e item selecionado.</div>
+            </div>
+          </div>
+          <div class="journey-step">
+            <div class="step-index">3</div>
+            <div>
+              <strong>Entrega sob demanda</strong>
+              <div class="muted">A corrida pode ser assumida rapidamente por um entregador disponivel.</div>
+            </div>
+          </div>
+          <div class="journey-step">
+            <div class="step-index">4</div>
+            <div>
+              <strong>Status claro</strong>
+              <div class="muted">Acompanhamento operacional com menos ruido e mais previsibilidade.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section grid-2">
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Catalogo em destaque</h2>
+            <p class="muted">Visual mais sobrio para produto, preco e estoque.</p>
+          </div>
+        </div>
+        <div id="featured-products" class="list-grid"></div>
+      </div>
+
+      <div class="surface content-card">
+        <div class="section-head">
+          <div>
+            <h2 class="section-title">Proximo passo</h2>
+            <p class="muted">A home vende a ideia. O console executa a operacao.</p>
+          </div>
+        </div>
+        <div class="journey">
+          <div class="journey-step">
+            <div class="step-index">A</div>
+            <div>
+              <strong>Popular dados demo</strong>
+              <div class="muted">Crie rapidamente a base inicial de usuarios, loja, produtos e pedido.</div>
+            </div>
+          </div>
+          <div class="journey-step">
+            <div class="step-index">B</div>
+            <div>
+              <strong>Abrir o console</strong>
+              <div class="muted">Use a tela operacional com login, loja, cliente e entrega separados.</div>
+            </div>
+          </div>
+          <div class="journey-step">
+            <div class="step-index">C</div>
+            <div>
+              <strong>Mostrar o fluxo completo</strong>
+              <div class="muted">Alterne entre perfis e demonstre o valor ponta a ponta.</div>
+            </div>
+          </div>
+        </div>
+        <div class="actions">
+          <a class="button-link btn-primary" href="/console">Ir para o console</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/shared.js"></script>
+  <script src="/static/home.js"></script>
+</body>
+</html>
