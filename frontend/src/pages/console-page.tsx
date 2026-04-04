@@ -38,6 +38,10 @@ import {
 import { currency, formatClock, formatDate, formatToken, getRoleLabel } from "@/lib/format"
 
 type StageId = "setup" | "store" | "customer" | "delivery"
+type StatusOption = {
+  value: OrderStatus
+  label: string
+}
 
 const stageMeta: Array<{
   id: StageId
@@ -75,6 +79,21 @@ const stageMeta: Array<{
     icon: Truck,
   },
 ]
+
+const STATUS_OPTIONS_BY_ROLE: Record<UserRole, StatusOption[]> = {
+  store: [
+    { value: "accepted", label: "Aceitar pedido" },
+    { value: "preparing", label: "Marcar como separacao" },
+    { value: "cancelled", label: "Cancelar pedido" },
+  ],
+  customer: [],
+  mechanic: [],
+  delivery: [
+    { value: "delivered", label: "Marcar como entregue" },
+    { value: "cancelled", label: "Cancelar entrega" },
+  ],
+}
+const EMPTY_STATUS_OPTIONS: StatusOption[] = []
 
 function scrollToSection(sectionId: StageId) {
   document.getElementById(sectionId)?.scrollIntoView({
@@ -226,6 +245,10 @@ export function ConsolePage() {
 
   const lastSyncAt = updatedAt ? formatClock(updatedAt) : ""
   const latestOrder = summary?.recent_orders[0]
+  const statusOptions = user ? STATUS_OPTIONS_BY_ROLE[user.role] : EMPTY_STATUS_OPTIONS
+  const selectedStatusValue = statusOptions.some((option) => option.value === deliveryForm.statusValue)
+    ? deliveryForm.statusValue
+    : (statusOptions[0]?.value ?? deliveryForm.statusValue)
 
   function primeOrderFields({
     storeId,
@@ -1039,7 +1062,7 @@ export function ConsolePage() {
                       )
                       primeOrderFields({
                         orderId: order.id,
-                        statusValue: "in_delivery",
+                        statusValue: "delivered",
                         target: "delivery",
                       })
                       await syncBoard(`Pedido #${order.id} assumido.`)
@@ -1087,7 +1110,7 @@ export function ConsolePage() {
 
               <Panel
                 title="Atualizar status"
-                description="Loja e entrega podem mover o pedido entre etapas."
+                description="A loja aceita e prepara. A entrega conclui ou cancela a corrida ja assumida."
               >
                 <Label htmlFor="status-order-id">Order ID</Label>
                 <Input
@@ -1102,7 +1125,7 @@ export function ConsolePage() {
                 />
                 <Label>Novo status</Label>
                 <Select
-                  value={deliveryForm.statusValue}
+                  value={selectedStatusValue}
                   onValueChange={(value) =>
                     setDeliveryForm((current) => ({
                       ...current,
@@ -1110,19 +1133,29 @@ export function ConsolePage() {
                     }))
                   }
                 >
-                  <SelectTrigger className="h-11 w-full rounded-2xl border-[#d7e0e8] bg-white">
+                  <SelectTrigger
+                    disabled={!statusOptions.length}
+                    className="h-11 w-full rounded-2xl border-[#d7e0e8] bg-white"
+                  >
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="accepted">accepted</SelectItem>
-                    <SelectItem value="preparing">preparing</SelectItem>
-                    <SelectItem value="in_delivery">in_delivery</SelectItem>
-                    <SelectItem value="delivered">delivered</SelectItem>
-                    <SelectItem value="cancelled">cancelled</SelectItem>
+                    {statusOptions.length ? (
+                      statusOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))
+                    ) : (
+                      <SelectItem value="accepted" disabled>
+                        Entre como store ou delivery
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
                 <Button
                   type="button"
+                  disabled={!statusOptions.length}
                   className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
                   onClick={() =>
                     handle(async () => {
@@ -1130,7 +1163,7 @@ export function ConsolePage() {
                         `/orders/${Number(deliveryForm.statusOrderId)}/status`,
                         {
                           method: "PATCH",
-                          body: JSON.stringify({ status: deliveryForm.statusValue }),
+                          body: JSON.stringify({ status: selectedStatusValue }),
                         },
                         token
                       )

@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -6,10 +7,52 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.deps import get_current_user, get_db, require_roles
 from app.models import Order, OrderItem, OrderStatus, Product, Store, User, UserRole
-from app.schemas import OrderCreate, OrderItemRead, OrderRead, OrderStatusUpdate
+from app.schemas import OrderCreate, OrderItemCreate, OrderItemRead, OrderRead, OrderStatusUpdate
 
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+STORE_ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
+    OrderStatus.pending: {OrderStatus.accepted, OrderStatus.cancelled},
+    OrderStatus.accepted: {OrderStatus.preparing, OrderStatus.cancelled},
+    OrderStatus.preparing: {OrderStatus.cancelled},
+}
+DELIVERY_ALLOWED_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
+    OrderStatus.in_delivery: {OrderStatus.delivered, OrderStatus.cancelled},
+}
+
+
+def normalize_order_items(items: Iterable[OrderItemCreate]) -> dict[int, int]:
+    normalized: dict[int, int] = {}
+    for item in items:
+        normalized[item.product_id] = normalized.get(item.product_id, 0) + item.quantity
+    return normalized
+
+
+def describe_statuses(statuses: set[OrderStatus]) -> str:
+    return ", ".join(status.value for status in sorted(statuses, key=lambda item: item.value))
+
+
+def validate_transition(
+    *,
+    current_status: OrderStatus,
+    new_status: OrderStatus,
+    allowed_transitions: dict[OrderStatus, set[OrderStatus]],
+    actor_label: str,
+) -> None:
+    if current_status == new_status:
+        return
+
+    allowed = allowed_transitions.get(current_status, set())
+    if new_status not in allowed:
+        allowed_text = describe_statuses(allowed) or "no further transitions"
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Invalid status transition from {current_status.value} to {new_status.value} "
+                f"for {actor_label}. Allowed next statuses: {allowed_text}"
+            ),
+        )
 
 
 def serialize_order(order: Order) -> OrderRead:
@@ -50,24 +93,26 @@ def create_order(
     if not payload.items:
         raise HTTPException(status_code=400, detail="Order must include at least one item")
 
+    requested_quantities = normalize_order_items(payload.items)
+
     products = list(
         db.scalars(
             select(Product).where(
                 Product.store_id == payload.store_id,
-                Product.id.in_([item.product_id for item in payload.items]),
+                Product.id.in_(requested_quantities),
             )
         )
     )
     products_by_id = {product.id: product for product in products}
 
-    for item in payload.items:
-        product = products_by_id.get(item.product_id)
+    for product_id, quantity in requested_quantities.items():
+        product = products_by_id.get(product_id)
         if not product:
             raise HTTPException(
                 status_code=400,
-                detail=f"Product {item.product_id} does not belong to this store",
+                detail=f"Product {product_id} does not belong to this store",
             )
-        if product.stock < item.quantity:
+        if product.stock < quantity:
             raise HTTPException(
                 status_code=400,
                 detail=f"Insufficient stock for product {product.name}",
@@ -87,17 +132,17 @@ def create_order(
     db.flush()
 
     total = Decimal("0.00")
-    for item in payload.items:
-        product = products_by_id[item.product_id]
-        product.stock -= item.quantity
+    for product_id, quantity in requested_quantities.items():
+        product = products_by_id[product_id]
+        product.stock -= quantity
         order_item = OrderItem(
             order_id=order.id,
             product_id=product.id,
-            quantity=item.quantity,
+            quantity=quantity,
             unit_price=product.price,
         )
         db.add(order_item)
-        total += Decimal(product.price) * item.quantity
+        total += Decimal(product.price) * quantity
 
     order.total_amount = total
     db.commit()
@@ -162,9 +207,21 @@ def update_order_status(
         store = db.scalar(select(Store).where(Store.owner_id == current_user.id))
         if not store or store.id != order.store_id:
             raise HTTPException(status_code=403, detail="Order does not belong to your store")
+        validate_transition(
+            current_status=order.status,
+            new_status=payload.status,
+            allowed_transitions=STORE_ALLOWED_TRANSITIONS,
+            actor_label="store",
+        )
     elif current_user.role == UserRole.delivery:
         if order.delivery_person_id != current_user.id:
             raise HTTPException(status_code=403, detail="Order not assigned to you")
+        validate_transition(
+            current_status=order.status,
+            new_status=payload.status,
+            allowed_transitions=DELIVERY_ALLOWED_TRANSITIONS,
+            actor_label="delivery",
+        )
     else:
         raise HTTPException(status_code=403, detail="Role cannot update order status")
 

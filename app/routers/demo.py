@@ -23,7 +23,7 @@ def build_summary(db: Session) -> dict[str, object]:
         select(func.count())
         .select_from(Order)
         .where(
-            Order.status.in_([OrderStatus.pending, OrderStatus.accepted]),
+            Order.status.in_([OrderStatus.accepted, OrderStatus.preparing]),
             Order.delivery_person_id.is_(None),
         )
     ) or 0
@@ -122,10 +122,10 @@ def seed_demo(db: Session = Depends(get_db)) -> dict[str, object]:
         role=UserRole.store,
     )
     customer_user = User(
-        name="Mecanico Demo",
+        name="Cliente Demo",
         email="customer@demo.com",
         password_hash=hash_password("123456"),
-        role=UserRole.mechanic,
+        role=UserRole.customer,
         latitude=-23.561684,
         longitude=-46.625378,
     )
@@ -205,6 +205,8 @@ def seed_demo(db: Session = Depends(get_db)) -> dict[str, object]:
             OrderItem(order_id=order.id, product_id=products[1].id, quantity=1, unit_price=39.90),
         ]
     )
+    products[0].stock -= 1
+    products[1].stock -= 1
     db.commit()
 
     return {
