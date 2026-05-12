@@ -1,9 +1,10 @@
 from decimal import Decimal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.core.limiter import limiter
 from app.core.security import hash_password
 from app.deps import get_db
 from app.models import Order, OrderItem, OrderStatus, Product, Store, User, UserRole
@@ -110,7 +111,8 @@ def build_summary(db: Session) -> dict[str, object]:
 
 
 @router.post("/seed")
-def seed_demo(db: Session = Depends(get_db)) -> dict[str, object]:
+@limiter.limit("5/minute")
+def seed_demo(request: Request, db: Session = Depends(get_db)) -> dict[str, object]:
     existing_store = db.scalar(select(User).where(User.email == "store@demo.com"))
     if existing_store:
         return {"message": "Demo data already exists", **build_summary(db)}

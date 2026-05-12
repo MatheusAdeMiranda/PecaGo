@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.logging import logger
 from app.deps import get_current_user, get_db, require_roles
 from app.models import Order, OrderItem, OrderStatus, Product, Store, User, UserRole
 from app.schemas import OrderCreate, OrderItemCreate, OrderItemRead, OrderRead, OrderStatusUpdate
@@ -147,6 +148,8 @@ def create_order(
     order.total_amount = total
     db.commit()
 
+    logger.info("order_created", order_id=order.id, customer_id=current_user.id, store_id=payload.store_id, total=str(total))
+
     saved_order = (
         db.execute(
             select(Order)
@@ -225,7 +228,11 @@ def update_order_status(
     else:
         raise HTTPException(status_code=403, detail="Role cannot update order status")
 
+    previous_status = order.status
     order.status = payload.status
     db.commit()
     db.refresh(order)
+
+    logger.info("order_status_changed", order_id=order_id, from_status=previous_status.value, to_status=payload.status.value, actor_id=current_user.id)
+
     return serialize_order(order)

@@ -1,19 +1,34 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from alembic import command
+from alembic.config import Config
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
-from app.db import Base, engine
+from app.core.config import settings
+from app.core.limiter import limiter
+from app.core.logging import RequestLoggingMiddleware, configure_logging, logger
 from app.routers import auth, deliveries, demo, orders, products, stores
 
 
-Base.metadata.create_all(bind=engine)
+def _run_migrations() -> None:
+    alembic_cfg = Config("alembic.ini")
+    command.upgrade(alembic_cfg, "head")
+
+
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
 FRONTEND_DIST_DIR = BASE_DIR.parent / "frontend" / "dist"
 FRONTEND_ASSETS_DIR = FRONTEND_DIST_DIR / "assets"
+
+configure_logging()
+_run_migrations()
+logger.info("startup", version="0.1.0")
 
 app = FastAPI(
     title="PecaGo",
@@ -21,9 +36,14 @@ app = FastAPI(
     version="0.1.0",
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
