@@ -23,6 +23,13 @@ class OrderStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+class PaymentStatus(str, enum.Enum):
+    pending = "pending"       # aguardando pagamento
+    approved = "approved"     # aprovado pelo MP
+    rejected = "rejected"     # recusado / expirado
+    refunded = "refunded"     # estornado
+
+
 class User(Base):
     __tablename__ = "users"
 
@@ -92,6 +99,11 @@ class Order(Base):
         ForeignKey("users.id"), nullable=True, index=True
     )
     status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.pending)
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        Enum(PaymentStatus), default=PaymentStatus.pending, index=True
+    )
+    payment_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    checkout_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     delivery_address: Mapped[str] = mapped_column(String(255))
     delivery_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     delivery_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)

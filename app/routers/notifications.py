@@ -27,6 +27,8 @@ _MESSAGES: dict[str, str] = {
     "order_in_delivery": "Pedido #{order_id} saiu para entrega.",
     "order_delivered":   "Pedido #{order_id} foi entregue.",
     "order_cancelled":   "Pedido #{order_id} foi cancelado.",
+    "payment_approved":  "Pagamento do pedido #{order_id} aprovado.",
+    "payment_rejected":  "Pagamento do pedido #{order_id} recusado. Tente novamente.",
 }
 
 

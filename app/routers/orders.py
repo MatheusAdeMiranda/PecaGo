@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.core.logging import logger
 from app.deps import get_current_user, get_db, require_roles
-from app.models import Order, OrderItem, OrderStatus, Product, Store, User, UserRole
+from app.models import Order, OrderItem, OrderStatus, PaymentStatus, Product, Store, User, UserRole
 from app.routers.notifications import notify
 from app.schemas import OrderCreate, OrderItemCreate, OrderItemRead, OrderRead, OrderStatusUpdate
 
@@ -64,6 +64,9 @@ def serialize_order(order: Order) -> OrderRead:
         store_id=order.store_id,
         delivery_person_id=order.delivery_person_id,
         status=order.status,
+        payment_status=order.payment_status,
+        payment_id=order.payment_id,
+        checkout_url=order.checkout_url,
         delivery_address=order.delivery_address,
         delivery_latitude=order.delivery_latitude,
         delivery_longitude=order.delivery_longitude,
@@ -218,6 +221,11 @@ def update_order_status(
             allowed_transitions=STORE_ALLOWED_TRANSITIONS,
             actor_label="store",
         )
+        if payload.status == OrderStatus.accepted and order.payment_status != PaymentStatus.approved:
+            raise HTTPException(
+                status_code=400,
+                detail="Pagamento ainda não aprovado. Aguarde a confirmação do Mercado Pago.",
+            )
     elif current_user.role == UserRole.delivery:
         if order.delivery_person_id != current_user.id:
             raise HTTPException(status_code=403, detail="Order not assigned to you")

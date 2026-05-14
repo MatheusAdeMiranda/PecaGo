@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import Product
+from app.models import Order, PaymentStatus, Product
 
 
 class ApiFlowTests(unittest.TestCase):
@@ -143,6 +143,12 @@ class ApiFlowTests(unittest.TestCase):
             product_id=data["product_ids"][1],
         )
         order_id = order["id"]
+
+        # Simula aprovação de pagamento (normalmente feito via webhook do MP)
+        with SessionLocal() as db:
+            db_order = db.get(Order, order_id)
+            db_order.payment_status = PaymentStatus.approved
+            db.commit()
 
         skip_response = self.client.patch(
             f"/orders/{order_id}/status",

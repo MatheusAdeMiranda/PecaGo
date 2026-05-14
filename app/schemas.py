@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models import OrderStatus, UserRole
+from app.models import OrderStatus, PaymentStatus, UserRole
 
 
 class Token(BaseModel):
@@ -123,6 +123,9 @@ class OrderRead(BaseModel):
     store_id: int
     delivery_person_id: int | None
     status: OrderStatus
+    payment_status: PaymentStatus
+    payment_id: str | None
+    checkout_url: str | None
     delivery_address: str
     delivery_latitude: float | None
     delivery_longitude: float | None

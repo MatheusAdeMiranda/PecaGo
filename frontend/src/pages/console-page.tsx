@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner"
 
 import { OrderTracker } from "@/components/order-tracker"
+import { PaymentBadge } from "@/components/payment-badge"
 import { useSession } from "@/components/session-provider"
 import { StatusBadge } from "@/components/status-badge"
 import { SurfaceCard } from "@/components/surface-card"
@@ -1050,24 +1051,45 @@ export function ConsolePage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-[#12202d]">Pedido #{order.id}</span>
                           <StatusBadge status={order.status} />
+                          <PaymentBadge status={order.payment_status} />
                         </div>
                         <div className="mt-1">
                           {currency(order.total_amount)} | {formatDate(order.created_at)}
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-3 rounded-2xl border-[#d7e0e8]"
-                          onClick={() =>
-                            primeOrderFields({
-                              orderId: order.id,
-                              statusValue: "preparing",
-                              target: "delivery",
-                            })
-                          }
-                        >
-                          Usar no tracking
-                        </Button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {order.payment_status === "pending" && (
+                            <Button
+                              type="button"
+                              className="rounded-2xl bg-[#009ee3] text-white hover:bg-[#007bbd]"
+                              onClick={() =>
+                                handle(async () => {
+                                  const res = await api<{ checkout_url: string }>(
+                                    `/orders/${order.id}/payment`,
+                                    { method: "POST" },
+                                    token
+                                  )
+                                  window.open(res.checkout_url, "_blank")
+                                }, "Não foi possível iniciar o pagamento.")
+                              }
+                            >
+                              Pagar agora
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-2xl border-[#d7e0e8]"
+                            onClick={() =>
+                              primeOrderFields({
+                                orderId: order.id,
+                                statusValue: "preparing",
+                                target: "delivery",
+                              })
+                            }
+                          >
+                            Usar no tracking
+                          </Button>
+                        </div>
                       </div>
                     ))
                   ) : (

@@ -110,12 +110,17 @@ export interface OrderItemRead {
   product_name: string
 }
 
+export type PaymentStatus = "pending" | "approved" | "rejected" | "refunded"
+
 export interface OrderRead {
   id: number
   customer_id: number
   store_id: number
   delivery_person_id: number | null
   status: OrderStatus
+  payment_status: PaymentStatus
+  payment_id: string | null
+  checkout_url: string | null
   delivery_address: string
   delivery_latitude: number | null
   delivery_longitude: number | null
