@@ -32,6 +32,7 @@ import {
   api,
   type OrderRead,
   type OrderStatus,
+  type ProductRead,
   type ProductSearchResult,
   type UserRole,
 } from "@/lib/api"
@@ -225,6 +226,9 @@ export function ConsolePage() {
     price: "189.90",
     stock: "8",
   })
+  const [lastProductId, setLastProductId] = useState<number | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [searchForm, setSearchForm] = useState({ query: "freio", city: "Sao Paulo" })
   const [orderForm, setOrderForm] = useState({
     storeId: "",
@@ -756,12 +760,39 @@ export function ConsolePage() {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Imagem do produto</Label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d7e0e8] bg-white p-4 text-sm text-slate-500 transition-colors hover:border-[#16324a]/30 hover:bg-slate-50">
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="mb-2 h-24 w-auto rounded-xl object-cover"
+                      />
+                    ) : (
+                      <span className="mb-1 text-xs">Clique para selecionar JPEG, PNG ou WebP (max 5 MB)</span>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        setImageFile(file)
+                        setImagePreview(file ? URL.createObjectURL(file) : null)
+                      }}
+                    />
+                    <span className="text-xs font-semibold text-[#16324a]">
+                      {imageFile ? imageFile.name : "Selecionar imagem (opcional)"}
+                    </span>
+                  </label>
+                </div>
                 <Button
                   type="button"
                   className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
                   onClick={() =>
                     handle(async () => {
-                      await api(
+                      const created = await api<ProductRead>(
                         "/products",
                         {
                           method: "POST",
@@ -776,6 +807,12 @@ export function ConsolePage() {
                         },
                         token
                       )
+                      setLastProductId(created.id)
+                      if (imageFile) {
+                        const form = new FormData()
+                        form.append("file", imageFile)
+                        await api(`/products/${created.id}/image`, { method: "POST", body: form }, token)
+                      }
                       await syncBoard("Produto cadastrado com sucesso.")
                     }, "Nao foi possivel cadastrar o produto.")
                   }
@@ -783,6 +820,31 @@ export function ConsolePage() {
                   <PackagePlus className="size-4" />
                   Publicar produto
                 </Button>
+                {lastProductId && (
+                  <div className="space-y-2">
+                    <Label>Trocar imagem (produto #{lastProductId})</Label>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-3 text-sm text-slate-500 hover:border-[#16324a]/30 hover:bg-slate-50">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handle(async () => {
+                              const form = new FormData()
+                              form.append("file", file)
+                              await api(`/products/${lastProductId}/image`, { method: "POST", body: form }, token)
+                              setImagePreview(URL.createObjectURL(file))
+                              toast.success("Imagem atualizada.")
+                            }, "Falha ao enviar imagem.")
+                          }
+                        }}
+                      />
+                      <span className="font-semibold text-[#16324a]">Enviar nova imagem</span>
+                    </label>
+                  </div>
+                )}
               </Panel>
             </div>
           </SectionCard>
@@ -841,6 +903,13 @@ export function ConsolePage() {
                         key={item.id}
                         className="rounded-2xl border border-[#d7e0e8] bg-white p-4 text-sm text-slate-600"
                       >
+                        {item.image_url && (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="mb-3 h-28 w-full rounded-xl object-cover"
+                          />
+                        )}
                         <div className="font-semibold text-[#12202d]">{item.name}</div>
                         <div className="mt-1">
                           Loja {item.store_id} | {currency(item.price)}

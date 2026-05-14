@@ -83,6 +83,7 @@ class ProductRead(BaseModel):
     description: str | None
     price: Decimal
     stock: int
+    image_url: str | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

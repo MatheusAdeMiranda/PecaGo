@@ -10,6 +10,7 @@ export type OrderStatus =
 
 export interface TokenResponse {
   access_token: string
+  refresh_token: string
   token_type: string
 }
 
@@ -91,6 +92,7 @@ export interface ProductRead {
   description: string | null
   price: number
   stock: number
+  image_url: string | null
   created_at: string
 }
 
