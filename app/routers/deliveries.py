@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.deps import get_db, require_roles
 from app.models import Order, OrderItem, OrderStatus, User, UserRole
+from app.routers.notifications import notify
 from app.routers.orders import serialize_order
 from app.schemas import DeliveryAssign, OrderRead
 
@@ -59,6 +60,7 @@ def assign_delivery(
 
     order.delivery_person_id = current_user.id
     order.status = OrderStatus.in_delivery
+    notify(db, user_id=order.customer_id, notification_type="order_in_delivery", order_id=order.id)
     db.commit()
     db.refresh(order)
     return serialize_order(order)

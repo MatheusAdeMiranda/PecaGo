@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.core.logging import logger
 from app.deps import get_current_user, get_db, require_roles
 from app.models import Order, OrderItem, OrderStatus, Product, Store, User, UserRole
+from app.routers.notifications import notify
 from app.schemas import OrderCreate, OrderItemCreate, OrderItemRead, OrderRead, OrderStatusUpdate
 
 
@@ -146,6 +147,7 @@ def create_order(
         total += Decimal(product.price) * quantity
 
     order.total_amount = total
+    notify(db, user_id=store.owner_id, notification_type="order_received", order_id=order.id)
     db.commit()
 
     logger.info("order_created", order_id=order.id, customer_id=current_user.id, store_id=payload.store_id, total=str(total))
@@ -230,9 +232,33 @@ def update_order_status(
 
     previous_status = order.status
     order.status = payload.status
+
+    _dispatch_status_notifications(db, order=order, new_status=payload.status)
+
     db.commit()
     db.refresh(order)
 
     logger.info("order_status_changed", order_id=order_id, from_status=previous_status.value, to_status=payload.status.value, actor_id=current_user.id)
 
     return serialize_order(order)
+
+
+def _dispatch_status_notifications(db: Session, *, order: Order, new_status: OrderStatus) -> None:
+    """Notifica os participantes do pedido conforme o novo status."""
+    customer_id = order.customer_id
+    store = db.scalar(select(Store).where(Store.id == order.store_id))
+    store_owner_id = store.owner_id if store else None
+
+    # notificações voltadas ao cliente
+    customer_map: dict[OrderStatus, str] = {
+        OrderStatus.accepted:    "order_accepted",
+        OrderStatus.preparing:   "order_preparing",
+        OrderStatus.delivered:   "order_delivered",
+        OrderStatus.cancelled:   "order_cancelled",
+    }
+    if new_status in customer_map:
+        notify(db, user_id=customer_id, notification_type=customer_map[new_status], order_id=order.id)
+
+    # notificações voltadas à loja
+    if store_owner_id and new_status in {OrderStatus.delivered, OrderStatus.cancelled}:
+        notify(db, user_id=store_owner_id, notification_type=f"order_{new_status.value}", order_id=order.id)

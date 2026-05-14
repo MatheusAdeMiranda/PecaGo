@@ -1,6 +1,7 @@
 import { LogOut, PackageSearch } from "lucide-react"
 import { NavLink, Outlet } from "react-router-dom"
 
+import { NotificationBell } from "@/components/notification-bell"
 import { Button } from "@/components/ui/button"
 import { useSession } from "@/components/session-provider"
 import { getRoleLabel } from "@/lib/format"
@@ -13,7 +14,7 @@ const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   )
 
 export function AppShell() {
-  const { user, logout } = useSession()
+  const { user, token, logout } = useSession()
 
   return (
     <div className="min-h-screen">
@@ -34,6 +35,7 @@ export function AppShell() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
+            <NotificationBell token={token ?? ""} />
             <nav className="flex items-center gap-1 rounded-full border border-[#d7e0e8] bg-white/90 p-1">
               <NavLink to="/" end className={navLinkClassName}>
                 Home
