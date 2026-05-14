@@ -105,6 +105,12 @@ class Order(Base):
     payment_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
     checkout_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     delivery_address: Mapped[str] = mapped_column(String(255))
+    # Posição atual do entregador (atualizada pelo app de delivery)
+    delivery_current_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivery_current_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivery_location_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     delivery_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     delivery_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)

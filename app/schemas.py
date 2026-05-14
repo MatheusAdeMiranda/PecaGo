@@ -133,6 +133,24 @@ class OrderRead(BaseModel):
     total_amount: Decimal
     created_at: datetime
     items: list[OrderItemRead]
+    delivery_current_latitude: float | None = None
+    delivery_current_longitude: float | None = None
+    delivery_location_updated_at: datetime | None = None
+
+
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class TrackingSnapshot(BaseModel):
+    order_id: int
+    status: OrderStatus
+    delivery_latitude: float | None
+    delivery_longitude: float | None
+    delivery_current_latitude: float | None
+    delivery_current_longitude: float | None
+    delivery_location_updated_at: datetime | None
 
 
 class DeliveryAssign(BaseModel):

@@ -14,6 +14,7 @@ import { toast } from "sonner"
 
 import { OrderTracker } from "@/components/order-tracker"
 import { PaymentBadge } from "@/components/payment-badge"
+import { TrackingMap } from "@/components/tracking-map"
 import { useSession } from "@/components/session-provider"
 import { StatusBadge } from "@/components/status-badge"
 import { SurfaceCard } from "@/components/surface-card"
@@ -243,6 +244,8 @@ export function ConsolePage() {
     statusOrderId: "1",
     statusValue: "accepted" as OrderStatus,
   })
+  const [trackOrderId, setTrackOrderId] = useState("")
+  const [locationForm, setLocationForm] = useState({ orderId: "", lat: "-23.561", lng: "-46.656" })
 
   const deferredSearchResults = useDeferredValue(searchResults)
   const deferredMyOrders = useDeferredValue(myOrders)
@@ -1107,7 +1110,7 @@ export function ConsolePage() {
             kicker="Last mile"
             title="Entrega"
             description="Assuma a corrida e mova o pedido pelas etapas operacionais."
-            chips={["Listar corridas", "Assumir entrega", "Atualizar status"]}
+            chips={["Listar corridas", "Assumir entrega", "Atualizar status", "Rastreamento ao vivo"]}
           >
             <div className="grid gap-4 xl:grid-cols-2">
               <Panel
@@ -1282,6 +1285,107 @@ export function ConsolePage() {
                     "Aguardando o primeiro pedido."
                   )}
                 </div>
+              </Panel>
+
+              <Panel
+                title="Enviar localizacao"
+                description="Simula o app do entregador enviando a posicao GPS a cada ciclo."
+              >
+                <Label htmlFor="location-order-id">Order ID</Label>
+                <Input
+                  id="location-order-id"
+                  value={locationForm.orderId || deliveryForm.statusOrderId}
+                  onChange={(event) =>
+                    setLocationForm((current) => ({
+                      ...current,
+                      orderId: event.target.value,
+                    }))
+                  }
+                  placeholder="ID do pedido in_delivery"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="location-lat">Latitude</Label>
+                    <Input
+                      id="location-lat"
+                      value={locationForm.lat}
+                      onChange={(event) =>
+                        setLocationForm((current) => ({ ...current, lat: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="location-lng">Longitude</Label>
+                    <Input
+                      id="location-lng"
+                      value={locationForm.lng}
+                      onChange={(event) =>
+                        setLocationForm((current) => ({ ...current, lng: event.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
+                  onClick={() =>
+                    handle(async () => {
+                      const orderId = Number(locationForm.orderId || deliveryForm.statusOrderId)
+                      await api(
+                        `/deliveries/${orderId}/location`,
+                        {
+                          method: "PATCH",
+                          body: JSON.stringify({
+                            latitude: Number(locationForm.lat),
+                            longitude: Number(locationForm.lng),
+                          }),
+                        },
+                        token
+                      )
+                      toast.success(`Posicao enviada para o pedido #${orderId}.`)
+                    }, "Nao foi possivel enviar a localizacao.")
+                  }
+                >
+                  Enviar localizacao
+                </Button>
+              </Panel>
+
+              <Panel
+                title="Rastreamento ao vivo"
+                description="Acompanhe o entregador em tempo real via SSE. Entre como customer ou store para ver o mapa."
+              >
+                <Label htmlFor="track-order-id">Order ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="track-order-id"
+                    value={trackOrderId}
+                    onChange={(event) => setTrackOrderId(event.target.value)}
+                    placeholder="ID do pedido in_delivery"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl border-[#d7e0e8]"
+                    onClick={() => {
+                      if (latestOrder) setTrackOrderId(String(latestOrder.id))
+                    }}
+                  >
+                    Ultimo
+                  </Button>
+                </div>
+
+                {trackOrderId && token ? (
+                  <TrackingMap
+                    key={trackOrderId}
+                    orderId={Number(trackOrderId)}
+                    token={token}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-6 text-center text-sm text-slate-400">
+                    Informe o Order ID acima para abrir o mapa.
+                  </div>
+                )}
               </Panel>
             </div>
           </SectionCard>

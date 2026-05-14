@@ -130,6 +130,16 @@ export interface OrderRead {
   items: OrderItemRead[]
 }
 
+export interface TrackingSnapshot {
+  order_id: number
+  status: OrderStatus
+  delivery_latitude: number | null
+  delivery_longitude: number | null
+  delivery_current_latitude: number | null
+  delivery_current_longitude: number | null
+  delivery_location_updated_at: string | null
+}
+
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "")
 
 function buildUrl(path: string) {
