@@ -10,6 +10,7 @@ export type OrderStatus =
 
 export interface TokenResponse {
   access_token: string
+  refresh_token: string
   token_type: string
 }
 
@@ -91,6 +92,7 @@ export interface ProductRead {
   description: string | null
   price: number
   stock: number
+  image_url: string | null
   created_at: string
 }
 
@@ -108,12 +110,17 @@ export interface OrderItemRead {
   product_name: string
 }
 
+export type PaymentStatus = "pending" | "approved" | "rejected" | "refunded"
+
 export interface OrderRead {
   id: number
   customer_id: number
   store_id: number
   delivery_person_id: number | null
   status: OrderStatus
+  payment_status: PaymentStatus
+  payment_id: string | null
+  checkout_url: string | null
   delivery_address: string
   delivery_latitude: number | null
   delivery_longitude: number | null
@@ -121,6 +128,37 @@ export interface OrderRead {
   total_amount: number
   created_at: string
   items: OrderItemRead[]
+}
+
+export type RevieweeType = "store" | "delivery"
+
+export interface ReviewRead {
+  id: number
+  order_id: number
+  reviewer_id: number
+  reviewer_name: string
+  reviewee_id: number
+  reviewee_name: string
+  reviewee_type: RevieweeType
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
+export interface RatingSummary {
+  avg_rating: number | null
+  review_count: number
+  reviews: ReviewRead[]
+}
+
+export interface TrackingSnapshot {
+  order_id: number
+  status: OrderStatus
+  delivery_latitude: number | null
+  delivery_longitude: number | null
+  delivery_current_latitude: number | null
+  delivery_current_longitude: number | null
+  delivery_location_updated_at: string | null
 }
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL ?? "").replace(/\/$/, "")

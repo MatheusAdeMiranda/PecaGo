@@ -13,7 +13,9 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import RequestLoggingMiddleware, configure_logging, logger
-from app.routers import auth, deliveries, demo, orders, products, stores
+from app.routers import auth, deliveries, demo, notifications, orders, payment, products, reviews, stores
+
+UPLOAD_DIR = Path(settings.upload_dir)
 
 
 def _run_migrations() -> None:
@@ -54,8 +56,15 @@ app.include_router(stores.router)
 app.include_router(products.router)
 app.include_router(orders.router)
 app.include_router(deliveries.router)
+app.include_router(notifications.router)
+app.include_router(payment.router)
+app.include_router(reviews.router)
 app.include_router(demo.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+if settings.storage_backend == "local":
+    UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 if FRONTEND_ASSETS_DIR.exists():
     app.mount("/assets", StaticFiles(directory=FRONTEND_ASSETS_DIR), name="frontend-assets")

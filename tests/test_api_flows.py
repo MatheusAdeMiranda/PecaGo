@@ -9,9 +9,10 @@ os.environ["SECRET_KEY"] = "test-secret-key"
 
 from fastapi.testclient import TestClient
 
+from app.core.limiter import limiter
 from app.db import Base, SessionLocal, engine
 from app.main import app
-from app.models import Product
+from app.models import Order, PaymentStatus, Product
 
 
 class ApiFlowTests(unittest.TestCase):
@@ -29,6 +30,8 @@ class ApiFlowTests(unittest.TestCase):
     def setUp(self) -> None:
         Base.metadata.drop_all(bind=engine)
         Base.metadata.create_all(bind=engine)
+        # Reset in-memory rate limit counters between tests
+        limiter._storage.reset()
 
     def seed_demo(self) -> dict:
         response = self.client.post("/demo/seed")
@@ -144,6 +147,12 @@ class ApiFlowTests(unittest.TestCase):
         )
         order_id = order["id"]
 
+        # Simula aprovação de pagamento (normalmente feito via webhook do MP)
+        with SessionLocal() as db:
+            db_order = db.get(Order, order_id)
+            db_order.payment_status = PaymentStatus.approved
+            db.commit()
+
         skip_response = self.client.patch(
             f"/orders/{order_id}/status",
             headers=store_headers,
@@ -199,6 +208,80 @@ class ApiFlowTests(unittest.TestCase):
         )
         self.assertEqual(delivered_response.status_code, 200, delivered_response.text)
         self.assertEqual(delivered_response.json()["status"], "delivered")
+
+
+    def test_review_flow_allows_customer_to_rate_store_and_delivery(self) -> None:
+        data = self.seed_demo()
+        customer_headers = self.login_headers("customer@demo.com")
+        store_headers = self.login_headers("store@demo.com")
+        delivery_headers = self.login_headers("delivery@demo.com")
+
+        order = self.create_order(
+            customer_headers,
+            store_id=data["store_id"],
+            product_id=data["product_ids"][0],
+        )
+        order_id = order["id"]
+
+        # Cannot review before delivery
+        early_review = self.client.post(
+            "/reviews",
+            headers=customer_headers,
+            json={"order_id": order_id, "reviewee_type": "store", "rating": 5},
+        )
+        self.assertEqual(early_review.status_code, 400)
+        self.assertIn("delivered", early_review.json()["detail"])
+
+        # Advance order to delivered
+        with SessionLocal() as db:
+            db_order = db.get(Order, order_id)
+            db_order.payment_status = PaymentStatus.approved
+            db.commit()
+
+        self.client.patch(f"/orders/{order_id}/status", headers=store_headers, json={"status": "accepted"})
+        self.client.patch(f"/orders/{order_id}/status", headers=store_headers, json={"status": "preparing"})
+        self.client.post("/deliveries/assign", headers=delivery_headers, json={"order_id": order_id})
+        self.client.patch(f"/orders/{order_id}/status", headers=delivery_headers, json={"status": "delivered"})
+
+        # Review store
+        store_review = self.client.post(
+            "/reviews",
+            headers=customer_headers,
+            json={"order_id": order_id, "reviewee_type": "store", "rating": 4, "comment": "Rapido!"},
+        )
+        self.assertEqual(store_review.status_code, 201, store_review.text)
+        self.assertEqual(store_review.json()["rating"], 4)
+        self.assertEqual(store_review.json()["reviewee_type"], "store")
+
+        # Review delivery person
+        delivery_review = self.client.post(
+            "/reviews",
+            headers=customer_headers,
+            json={"order_id": order_id, "reviewee_type": "delivery", "rating": 5},
+        )
+        self.assertEqual(delivery_review.status_code, 201, delivery_review.text)
+        self.assertEqual(delivery_review.json()["rating"], 5)
+
+        # Duplicate review is blocked
+        duplicate = self.client.post(
+            "/reviews",
+            headers=customer_headers,
+            json={"order_id": order_id, "reviewee_type": "store", "rating": 1},
+        )
+        self.assertEqual(duplicate.status_code, 400)
+        self.assertIn("already reviewed", duplicate.json()["detail"])
+
+        # Summary endpoints return correct averages
+        store_summary = self.client.get(f"/reviews/store/{data['store_id']}")
+        self.assertEqual(store_summary.status_code, 200)
+        self.assertEqual(store_summary.json()["avg_rating"], 4.0)
+        self.assertEqual(store_summary.json()["review_count"], 1)
+
+        delivery_me = self.client.get("/auth/me", headers=delivery_headers).json()
+        delivery_summary = self.client.get(f"/reviews/delivery/{delivery_me['id']}")
+        self.assertEqual(delivery_summary.status_code, 200)
+        self.assertEqual(delivery_summary.json()["avg_rating"], 5.0)
+        self.assertEqual(delivery_summary.json()["review_count"], 1)
 
 
 if __name__ == "__main__":

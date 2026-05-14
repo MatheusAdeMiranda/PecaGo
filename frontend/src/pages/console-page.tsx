@@ -13,6 +13,9 @@ import {
 import { toast } from "sonner"
 
 import { OrderTracker } from "@/components/order-tracker"
+import { PaymentBadge } from "@/components/payment-badge"
+import { StarDisplay, StarPicker } from "@/components/star-rating"
+import { TrackingMap } from "@/components/tracking-map"
 import { useSession } from "@/components/session-provider"
 import { StatusBadge } from "@/components/status-badge"
 import { SurfaceCard } from "@/components/surface-card"
@@ -32,7 +35,10 @@ import {
   api,
   type OrderRead,
   type OrderStatus,
+  type ProductRead,
   type ProductSearchResult,
+  type RatingSummary,
+  type RevieweeType,
   type UserRole,
 } from "@/lib/api"
 import { currency, formatClock, formatDate, formatToken, getRoleLabel } from "@/lib/format"
@@ -225,6 +231,9 @@ export function ConsolePage() {
     price: "189.90",
     stock: "8",
   })
+  const [lastProductId, setLastProductId] = useState<number | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
+  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [searchForm, setSearchForm] = useState({ query: "freio", city: "Sao Paulo" })
   const [orderForm, setOrderForm] = useState({
     storeId: "",
@@ -238,6 +247,15 @@ export function ConsolePage() {
     statusOrderId: "1",
     statusValue: "accepted" as OrderStatus,
   })
+  const [trackOrderId, setTrackOrderId] = useState("")
+  const [locationForm, setLocationForm] = useState({ orderId: "", lat: "-23.561", lng: "-46.656" })
+  const [reviewForm, setReviewForm] = useState({
+    orderId: "",
+    revieweeType: "store" as RevieweeType,
+    rating: 5,
+    comment: "",
+  })
+  const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null)
 
   const deferredSearchResults = useDeferredValue(searchResults)
   const deferredMyOrders = useDeferredValue(myOrders)
@@ -756,12 +774,39 @@ export function ConsolePage() {
                     />
                   </div>
                 </div>
+                <div className="space-y-2">
+                  <Label>Imagem do produto</Label>
+                  <label className="flex cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-[#d7e0e8] bg-white p-4 text-sm text-slate-500 transition-colors hover:border-[#16324a]/30 hover:bg-slate-50">
+                    {imagePreview ? (
+                      <img
+                        src={imagePreview}
+                        alt="Preview"
+                        className="mb-2 h-24 w-auto rounded-xl object-cover"
+                      />
+                    ) : (
+                      <span className="mb-1 text-xs">Clique para selecionar JPEG, PNG ou WebP (max 5 MB)</span>
+                    )}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] ?? null
+                        setImageFile(file)
+                        setImagePreview(file ? URL.createObjectURL(file) : null)
+                      }}
+                    />
+                    <span className="text-xs font-semibold text-[#16324a]">
+                      {imageFile ? imageFile.name : "Selecionar imagem (opcional)"}
+                    </span>
+                  </label>
+                </div>
                 <Button
                   type="button"
                   className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
                   onClick={() =>
                     handle(async () => {
-                      await api(
+                      const created = await api<ProductRead>(
                         "/products",
                         {
                           method: "POST",
@@ -776,6 +821,12 @@ export function ConsolePage() {
                         },
                         token
                       )
+                      setLastProductId(created.id)
+                      if (imageFile) {
+                        const form = new FormData()
+                        form.append("file", imageFile)
+                        await api(`/products/${created.id}/image`, { method: "POST", body: form }, token)
+                      }
                       await syncBoard("Produto cadastrado com sucesso.")
                     }, "Nao foi possivel cadastrar o produto.")
                   }
@@ -783,6 +834,31 @@ export function ConsolePage() {
                   <PackagePlus className="size-4" />
                   Publicar produto
                 </Button>
+                {lastProductId && (
+                  <div className="space-y-2">
+                    <Label>Trocar imagem (produto #{lastProductId})</Label>
+                    <label className="flex cursor-pointer items-center gap-3 rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-3 text-sm text-slate-500 hover:border-[#16324a]/30 hover:bg-slate-50">
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0]
+                          if (file) {
+                            handle(async () => {
+                              const form = new FormData()
+                              form.append("file", file)
+                              await api(`/products/${lastProductId}/image`, { method: "POST", body: form }, token)
+                              setImagePreview(URL.createObjectURL(file))
+                              toast.success("Imagem atualizada.")
+                            }, "Falha ao enviar imagem.")
+                          }
+                        }}
+                      />
+                      <span className="font-semibold text-[#16324a]">Enviar nova imagem</span>
+                    </label>
+                  </div>
+                )}
               </Panel>
             </div>
           </SectionCard>
@@ -792,7 +868,7 @@ export function ConsolePage() {
             kicker="Buyer flow"
             title="Cliente"
             description="Encontre a peca, alimente o formulario do pedido e acompanhe o historico."
-            chips={["Buscar pecas", "Criar pedido", "Ler historico"]}
+            chips={["Buscar pecas", "Criar pedido", "Ler historico", "Avaliar pedido"]}
           >
             <div className="grid gap-4 xl:grid-cols-3">
               <Panel
@@ -841,6 +917,13 @@ export function ConsolePage() {
                         key={item.id}
                         className="rounded-2xl border border-[#d7e0e8] bg-white p-4 text-sm text-slate-600"
                       >
+                        {item.image_url && (
+                          <img
+                            src={item.image_url}
+                            alt={item.name}
+                            className="mb-3 h-28 w-full rounded-xl object-cover"
+                          />
+                        )}
                         <div className="font-semibold text-[#12202d]">{item.name}</div>
                         <div className="mt-1">
                           Loja {item.store_id} | {currency(item.price)}
@@ -981,29 +1064,199 @@ export function ConsolePage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-[#12202d]">Pedido #{order.id}</span>
                           <StatusBadge status={order.status} />
+                          <PaymentBadge status={order.payment_status} />
                         </div>
                         <div className="mt-1">
                           {currency(order.total_amount)} | {formatDate(order.created_at)}
                         </div>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          className="mt-3 rounded-2xl border-[#d7e0e8]"
-                          onClick={() =>
-                            primeOrderFields({
-                              orderId: order.id,
-                              statusValue: "preparing",
-                              target: "delivery",
-                            })
-                          }
-                        >
-                          Usar no tracking
-                        </Button>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {order.payment_status === "pending" && (
+                            <Button
+                              type="button"
+                              className="rounded-2xl bg-[#009ee3] text-white hover:bg-[#007bbd]"
+                              onClick={() =>
+                                handle(async () => {
+                                  const res = await api<{ checkout_url: string }>(
+                                    `/orders/${order.id}/payment`,
+                                    { method: "POST" },
+                                    token
+                                  )
+                                  window.open(res.checkout_url, "_blank")
+                                }, "Não foi possível iniciar o pagamento.")
+                              }
+                            >
+                              Pagar agora
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-2xl border-[#d7e0e8]"
+                            onClick={() =>
+                              primeOrderFields({
+                                orderId: order.id,
+                                statusValue: "preparing",
+                                target: "delivery",
+                              })
+                            }
+                          >
+                            Usar no tracking
+                          </Button>
+                          {order.status === "delivered" && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50"
+                              onClick={() => {
+                                setReviewForm((current) => ({
+                                  ...current,
+                                  orderId: String(order.id),
+                                }))
+                                document.getElementById("review-panel")?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                })
+                              }}
+                            >
+                              ★ Avaliar
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-3 text-sm text-slate-500">
                       Carregue o historico para ver os pedidos dessa sessao.
+                    </div>
+                  )}
+                </div>
+              </Panel>
+              <Panel
+                title="Avaliar pedido"
+                description="Cliente avalia a loja e o entregador apos a entrega. Uma avaliacao por tipo por pedido."
+              >
+                <div id="review-panel" />
+                <Label htmlFor="review-order-id">Order ID</Label>
+                <Input
+                  id="review-order-id"
+                  value={reviewForm.orderId}
+                  onChange={(event) =>
+                    setReviewForm((current) => ({ ...current, orderId: event.target.value }))
+                  }
+                  placeholder="ID do pedido entregue"
+                />
+                <Label>Avaliar</Label>
+                <Select
+                  value={reviewForm.revieweeType}
+                  onValueChange={(value) =>
+                    setReviewForm((current) => ({
+                      ...current,
+                      revieweeType: value as RevieweeType,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-11 w-full rounded-2xl border-[#d7e0e8] bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="store">Loja</SelectItem>
+                    <SelectItem value="delivery">Entregador</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div>
+                  <Label>Nota</Label>
+                  <div className="mt-1">
+                    <StarPicker
+                      value={reviewForm.rating}
+                      onChange={(value) =>
+                        setReviewForm((current) => ({ ...current, rating: value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="review-comment">Comentario (opcional)</Label>
+                  <Textarea
+                    id="review-comment"
+                    value={reviewForm.comment}
+                    onChange={(event) =>
+                      setReviewForm((current) => ({ ...current, comment: event.target.value }))
+                    }
+                    placeholder="Descreva sua experiencia..."
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
+                  onClick={() =>
+                    handle(async () => {
+                      await api(
+                        "/reviews",
+                        {
+                          method: "POST",
+                          body: JSON.stringify({
+                            order_id: Number(reviewForm.orderId),
+                            reviewee_type: reviewForm.revieweeType,
+                            rating: reviewForm.rating,
+                            comment: reviewForm.comment || null,
+                          }),
+                        },
+                        token
+                      )
+                      toast.success("Avaliacao enviada com sucesso!")
+                      setReviewForm((current) => ({ ...current, comment: "" }))
+                    }, "Nao foi possivel enviar a avaliacao.")
+                  }
+                >
+                  Enviar avaliacao
+                </Button>
+
+                {/* Consultar media de uma loja pelo store_id */}
+                <div className="mt-2 border-t border-[#d7e0e8] pt-4">
+                  <p className="mb-2 text-sm font-semibold text-[#12202d]">Ver media de avaliacoes</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-2xl border-[#d7e0e8]"
+                      onClick={() =>
+                        handle(async () => {
+                          // usa o store_id do primeiro pedido carregado
+                          const id = deferredMyOrders[0]?.store_id
+                          if (!id) {
+                            toast.error("Carregue seus pedidos primeiro para obter o Store ID.")
+                            return
+                          }
+                          setRatingSummary(
+                            await api<RatingSummary>(`/reviews/store/${id}`)
+                          )
+                        }, "Nao foi possivel obter as avaliacoes.")
+                      }
+                    >
+                      Loja do ultimo pedido
+                    </Button>
+                  </div>
+                  {ratingSummary && (
+                    <div className="mt-3 rounded-2xl border border-[#d7e0e8] bg-white p-4">
+                      <StarDisplay
+                        avg={ratingSummary.avg_rating}
+                        count={ratingSummary.review_count}
+                      />
+                      {ratingSummary.reviews.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {ratingSummary.reviews.slice(0, 3).map((review) => (
+                            <div key={review.id} className="text-xs text-slate-500">
+                              <span className="font-medium text-amber-500">
+                                {"★".repeat(review.rating)}
+                                {"☆".repeat(5 - review.rating)}
+                              </span>{" "}
+                              <span className="text-slate-600">{review.reviewer_name}:</span>{" "}
+                              {review.comment ?? "Sem comentario."}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1016,7 +1269,7 @@ export function ConsolePage() {
             kicker="Last mile"
             title="Entrega"
             description="Assuma a corrida e mova o pedido pelas etapas operacionais."
-            chips={["Listar corridas", "Assumir entrega", "Atualizar status"]}
+            chips={["Listar corridas", "Assumir entrega", "Atualizar status", "Rastreamento ao vivo"]}
           >
             <div className="grid gap-4 xl:grid-cols-2">
               <Panel
@@ -1191,6 +1444,107 @@ export function ConsolePage() {
                     "Aguardando o primeiro pedido."
                   )}
                 </div>
+              </Panel>
+
+              <Panel
+                title="Enviar localizacao"
+                description="Simula o app do entregador enviando a posicao GPS a cada ciclo."
+              >
+                <Label htmlFor="location-order-id">Order ID</Label>
+                <Input
+                  id="location-order-id"
+                  value={locationForm.orderId || deliveryForm.statusOrderId}
+                  onChange={(event) =>
+                    setLocationForm((current) => ({
+                      ...current,
+                      orderId: event.target.value,
+                    }))
+                  }
+                  placeholder="ID do pedido in_delivery"
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="location-lat">Latitude</Label>
+                    <Input
+                      id="location-lat"
+                      value={locationForm.lat}
+                      onChange={(event) =>
+                        setLocationForm((current) => ({ ...current, lat: event.target.value }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="location-lng">Longitude</Label>
+                    <Input
+                      id="location-lng"
+                      value={locationForm.lng}
+                      onChange={(event) =>
+                        setLocationForm((current) => ({ ...current, lng: event.target.value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
+                  onClick={() =>
+                    handle(async () => {
+                      const orderId = Number(locationForm.orderId || deliveryForm.statusOrderId)
+                      await api(
+                        `/deliveries/${orderId}/location`,
+                        {
+                          method: "PATCH",
+                          body: JSON.stringify({
+                            latitude: Number(locationForm.lat),
+                            longitude: Number(locationForm.lng),
+                          }),
+                        },
+                        token
+                      )
+                      toast.success(`Posicao enviada para o pedido #${orderId}.`)
+                    }, "Nao foi possivel enviar a localizacao.")
+                  }
+                >
+                  Enviar localizacao
+                </Button>
+              </Panel>
+
+              <Panel
+                title="Rastreamento ao vivo"
+                description="Acompanhe o entregador em tempo real via SSE. Entre como customer ou store para ver o mapa."
+              >
+                <Label htmlFor="track-order-id">Order ID</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="track-order-id"
+                    value={trackOrderId}
+                    onChange={(event) => setTrackOrderId(event.target.value)}
+                    placeholder="ID do pedido in_delivery"
+                    className="flex-1"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-2xl border-[#d7e0e8]"
+                    onClick={() => {
+                      if (latestOrder) setTrackOrderId(String(latestOrder.id))
+                    }}
+                  >
+                    Ultimo
+                  </Button>
+                </div>
+
+                {trackOrderId && token ? (
+                  <TrackingMap
+                    key={trackOrderId}
+                    orderId={Number(trackOrderId)}
+                    token={token}
+                  />
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-6 text-center text-sm text-slate-400">
+                    Informe o Order ID acima para abrir o mapa.
+                  </div>
+                )}
               </Panel>
             </div>
           </SectionCard>

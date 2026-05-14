@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import literal, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.storage import upload_image
 from app.deps import get_db, require_roles
 from app.models import Product, Store, User, UserRole
 from app.schemas import ProductCreate, ProductRead, ProductSearchResult
@@ -30,6 +31,31 @@ def create_product(
 @router.get("", response_model=list[ProductRead])
 def list_products(db: Session = Depends(get_db)) -> list[Product]:
     return list(db.scalars(select(Product).order_by(Product.created_at.desc())))
+
+
+@router.post("/{product_id}/image", response_model=ProductRead)
+async def upload_product_image(
+    product_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(UserRole.store)),
+) -> Product:
+    product = db.get(Product, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    store = db.scalar(select(Store).where(Store.owner_id == current_user.id))
+    if not store or product.store_id != store.id:
+        raise HTTPException(status_code=403, detail="Product does not belong to your store")
+
+    try:
+        product.image_url = await upload_image(file)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    db.commit()
+    db.refresh(product)
+    return product
 
 
 @router.get("/search", response_model=list[ProductSearchResult])

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, Numeric, String, Text, func
+from sqlalchemy import Boolean, DateTime, Enum, Float, ForeignKey, Integer, JSON, Numeric, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db import Base
@@ -21,6 +21,13 @@ class OrderStatus(str, enum.Enum):
     in_delivery = "in_delivery"
     delivered = "delivered"
     cancelled = "cancelled"
+
+
+class PaymentStatus(str, enum.Enum):
+    pending = "pending"       # aguardando pagamento
+    approved = "approved"     # aprovado pelo MP
+    rejected = "rejected"     # recusado / expirado
+    refunded = "refunded"     # estornado
 
 
 class User(Base):
@@ -73,6 +80,7 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[float] = mapped_column(Numeric(10, 2))
     stock: Mapped[int] = mapped_column(Integer, default=0)
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
@@ -91,7 +99,18 @@ class Order(Base):
         ForeignKey("users.id"), nullable=True, index=True
     )
     status: Mapped[OrderStatus] = mapped_column(Enum(OrderStatus), default=OrderStatus.pending)
+    payment_status: Mapped[PaymentStatus] = mapped_column(
+        Enum(PaymentStatus), default=PaymentStatus.pending, index=True
+    )
+    payment_id: Mapped[str | None] = mapped_column(String(120), nullable=True, index=True)
+    checkout_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     delivery_address: Mapped[str] = mapped_column(String(255))
+    # Posição atual do entregador (atualizada pelo app de delivery)
+    delivery_current_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivery_current_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivery_location_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     delivery_latitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     delivery_longitude: Mapped[float | None] = mapped_column(Float, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -117,6 +136,45 @@ class OrderItem(Base):
 
     order = relationship("Order", back_populates="items")
     product = relationship("Product", back_populates="items")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    type: Mapped[str] = mapped_column(String(60), index=True)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    user = relationship("User")
+
+
+class RevieweeType(str, enum.Enum):
+    store = "store"
+    delivery = "delivery"
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    reviewer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reviewee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reviewee_type: Mapped[RevieweeType] = mapped_column(Enum(RevieweeType), index=True)
+    rating: Mapped[int] = mapped_column(Integer)  # 1-5
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+    reviewee = relationship("User", foreign_keys=[reviewee_id])
+    order = relationship("Order")
 
 
 class RefreshToken(Base):

@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models import OrderStatus, UserRole
+from app.models import OrderStatus, PaymentStatus, RevieweeType, UserRole
 
 
 class Token(BaseModel):
@@ -83,6 +83,7 @@ class ProductRead(BaseModel):
     description: str | None
     price: Decimal
     stock: int
+    image_url: str | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -122,6 +123,9 @@ class OrderRead(BaseModel):
     store_id: int
     delivery_person_id: int | None
     status: OrderStatus
+    payment_status: PaymentStatus
+    payment_id: str | None
+    checkout_url: str | None
     delivery_address: str
     delivery_latitude: float | None
     delivery_longitude: float | None
@@ -129,6 +133,24 @@ class OrderRead(BaseModel):
     total_amount: Decimal
     created_at: datetime
     items: list[OrderItemRead]
+    delivery_current_latitude: float | None = None
+    delivery_current_longitude: float | None = None
+    delivery_location_updated_at: datetime | None = None
+
+
+class LocationUpdate(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class TrackingSnapshot(BaseModel):
+    order_id: int
+    status: OrderStatus
+    delivery_latitude: float | None
+    delivery_longitude: float | None
+    delivery_current_latitude: float | None
+    delivery_current_longitude: float | None
+    delivery_location_updated_at: datetime | None
 
 
 class DeliveryAssign(BaseModel):
@@ -137,3 +159,29 @@ class DeliveryAssign(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+
+class ReviewCreate(BaseModel):
+    order_id: int
+    reviewee_type: RevieweeType
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+
+
+class ReviewRead(BaseModel):
+    id: int
+    order_id: int
+    reviewer_id: int
+    reviewer_name: str
+    reviewee_id: int
+    reviewee_name: str
+    reviewee_type: RevieweeType
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+
+class RatingSummary(BaseModel):
+    avg_rating: float | None
+    review_count: int
+    reviews: list[ReviewRead]
