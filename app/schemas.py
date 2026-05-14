@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from app.models import OrderStatus, PaymentStatus, UserRole
+from app.models import OrderStatus, PaymentStatus, RevieweeType, UserRole
 
 
 class Token(BaseModel):
@@ -159,3 +159,29 @@ class DeliveryAssign(BaseModel):
 
 class OrderStatusUpdate(BaseModel):
     status: OrderStatus
+
+
+class ReviewCreate(BaseModel):
+    order_id: int
+    reviewee_type: RevieweeType
+    rating: int = Field(ge=1, le=5)
+    comment: str | None = None
+
+
+class ReviewRead(BaseModel):
+    id: int
+    order_id: int
+    reviewer_id: int
+    reviewer_name: str
+    reviewee_id: int
+    reviewee_name: str
+    reviewee_type: RevieweeType
+    rating: int
+    comment: str | None
+    created_at: datetime
+
+
+class RatingSummary(BaseModel):
+    avg_rating: float | None
+    review_count: int
+    reviews: list[ReviewRead]

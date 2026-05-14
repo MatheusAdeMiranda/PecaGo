@@ -130,6 +130,27 @@ export interface OrderRead {
   items: OrderItemRead[]
 }
 
+export type RevieweeType = "store" | "delivery"
+
+export interface ReviewRead {
+  id: number
+  order_id: number
+  reviewer_id: number
+  reviewer_name: string
+  reviewee_id: number
+  reviewee_name: string
+  reviewee_type: RevieweeType
+  rating: number
+  comment: string | null
+  created_at: string
+}
+
+export interface RatingSummary {
+  avg_rating: number | null
+  review_count: number
+  reviews: ReviewRead[]
+}
+
 export interface TrackingSnapshot {
   order_id: number
   status: OrderStatus

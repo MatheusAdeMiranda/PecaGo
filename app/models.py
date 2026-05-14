@@ -153,6 +153,30 @@ class Notification(Base):
     user = relationship("User")
 
 
+class RevieweeType(str, enum.Enum):
+    store = "store"
+    delivery = "delivery"
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("orders.id"), index=True)
+    reviewer_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reviewee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
+    reviewee_type: Mapped[RevieweeType] = mapped_column(Enum(RevieweeType), index=True)
+    rating: Mapped[int] = mapped_column(Integer)  # 1-5
+    comment: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    reviewer = relationship("User", foreign_keys=[reviewer_id])
+    reviewee = relationship("User", foreign_keys=[reviewee_id])
+    order = relationship("Order")
+
+
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 

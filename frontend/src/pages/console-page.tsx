@@ -14,6 +14,7 @@ import { toast } from "sonner"
 
 import { OrderTracker } from "@/components/order-tracker"
 import { PaymentBadge } from "@/components/payment-badge"
+import { StarDisplay, StarPicker } from "@/components/star-rating"
 import { TrackingMap } from "@/components/tracking-map"
 import { useSession } from "@/components/session-provider"
 import { StatusBadge } from "@/components/status-badge"
@@ -36,6 +37,8 @@ import {
   type OrderStatus,
   type ProductRead,
   type ProductSearchResult,
+  type RatingSummary,
+  type RevieweeType,
   type UserRole,
 } from "@/lib/api"
 import { currency, formatClock, formatDate, formatToken, getRoleLabel } from "@/lib/format"
@@ -246,6 +249,13 @@ export function ConsolePage() {
   })
   const [trackOrderId, setTrackOrderId] = useState("")
   const [locationForm, setLocationForm] = useState({ orderId: "", lat: "-23.561", lng: "-46.656" })
+  const [reviewForm, setReviewForm] = useState({
+    orderId: "",
+    revieweeType: "store" as RevieweeType,
+    rating: 5,
+    comment: "",
+  })
+  const [ratingSummary, setRatingSummary] = useState<RatingSummary | null>(null)
 
   const deferredSearchResults = useDeferredValue(searchResults)
   const deferredMyOrders = useDeferredValue(myOrders)
@@ -858,7 +868,7 @@ export function ConsolePage() {
             kicker="Buyer flow"
             title="Cliente"
             description="Encontre a peca, alimente o formulario do pedido e acompanhe o historico."
-            chips={["Buscar pecas", "Criar pedido", "Ler historico"]}
+            chips={["Buscar pecas", "Criar pedido", "Ler historico", "Avaliar pedido"]}
           >
             <div className="grid gap-4 xl:grid-cols-3">
               <Panel
@@ -1092,12 +1102,161 @@ export function ConsolePage() {
                           >
                             Usar no tracking
                           </Button>
+                          {order.status === "delivered" && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50"
+                              onClick={() => {
+                                setReviewForm((current) => ({
+                                  ...current,
+                                  orderId: String(order.id),
+                                }))
+                                document.getElementById("review-panel")?.scrollIntoView({
+                                  behavior: "smooth",
+                                  block: "center",
+                                })
+                              }}
+                            >
+                              ★ Avaliar
+                            </Button>
+                          )}
                         </div>
                       </div>
                     ))
                   ) : (
                     <div className="rounded-2xl border border-dashed border-[#d7e0e8] bg-white px-4 py-3 text-sm text-slate-500">
                       Carregue o historico para ver os pedidos dessa sessao.
+                    </div>
+                  )}
+                </div>
+              </Panel>
+              <Panel
+                title="Avaliar pedido"
+                description="Cliente avalia a loja e o entregador apos a entrega. Uma avaliacao por tipo por pedido."
+              >
+                <div id="review-panel" />
+                <Label htmlFor="review-order-id">Order ID</Label>
+                <Input
+                  id="review-order-id"
+                  value={reviewForm.orderId}
+                  onChange={(event) =>
+                    setReviewForm((current) => ({ ...current, orderId: event.target.value }))
+                  }
+                  placeholder="ID do pedido entregue"
+                />
+                <Label>Avaliar</Label>
+                <Select
+                  value={reviewForm.revieweeType}
+                  onValueChange={(value) =>
+                    setReviewForm((current) => ({
+                      ...current,
+                      revieweeType: value as RevieweeType,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-11 w-full rounded-2xl border-[#d7e0e8] bg-white">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="store">Loja</SelectItem>
+                    <SelectItem value="delivery">Entregador</SelectItem>
+                  </SelectContent>
+                </Select>
+                <div>
+                  <Label>Nota</Label>
+                  <div className="mt-1">
+                    <StarPicker
+                      value={reviewForm.rating}
+                      onChange={(value) =>
+                        setReviewForm((current) => ({ ...current, rating: value }))
+                      }
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="review-comment">Comentario (opcional)</Label>
+                  <Textarea
+                    id="review-comment"
+                    value={reviewForm.comment}
+                    onChange={(event) =>
+                      setReviewForm((current) => ({ ...current, comment: event.target.value }))
+                    }
+                    placeholder="Descreva sua experiencia..."
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="h-11 rounded-2xl bg-[#16324a] text-white hover:bg-[#0d2234]"
+                  onClick={() =>
+                    handle(async () => {
+                      await api(
+                        "/reviews",
+                        {
+                          method: "POST",
+                          body: JSON.stringify({
+                            order_id: Number(reviewForm.orderId),
+                            reviewee_type: reviewForm.revieweeType,
+                            rating: reviewForm.rating,
+                            comment: reviewForm.comment || null,
+                          }),
+                        },
+                        token
+                      )
+                      toast.success("Avaliacao enviada com sucesso!")
+                      setReviewForm((current) => ({ ...current, comment: "" }))
+                    }, "Nao foi possivel enviar a avaliacao.")
+                  }
+                >
+                  Enviar avaliacao
+                </Button>
+
+                {/* Consultar media de uma loja pelo store_id */}
+                <div className="mt-2 border-t border-[#d7e0e8] pt-4">
+                  <p className="mb-2 text-sm font-semibold text-[#12202d]">Ver media de avaliacoes</p>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-2xl border-[#d7e0e8]"
+                      onClick={() =>
+                        handle(async () => {
+                          // usa o store_id do primeiro pedido carregado
+                          const id = deferredMyOrders[0]?.store_id
+                          if (!id) {
+                            toast.error("Carregue seus pedidos primeiro para obter o Store ID.")
+                            return
+                          }
+                          setRatingSummary(
+                            await api<RatingSummary>(`/reviews/store/${id}`)
+                          )
+                        }, "Nao foi possivel obter as avaliacoes.")
+                      }
+                    >
+                      Loja do ultimo pedido
+                    </Button>
+                  </div>
+                  {ratingSummary && (
+                    <div className="mt-3 rounded-2xl border border-[#d7e0e8] bg-white p-4">
+                      <StarDisplay
+                        avg={ratingSummary.avg_rating}
+                        count={ratingSummary.review_count}
+                      />
+                      {ratingSummary.reviews.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {ratingSummary.reviews.slice(0, 3).map((review) => (
+                            <div key={review.id} className="text-xs text-slate-500">
+                              <span className="font-medium text-amber-500">
+                                {"★".repeat(review.rating)}
+                                {"☆".repeat(5 - review.rating)}
+                              </span>{" "}
+                              <span className="text-slate-600">{review.reviewer_name}:</span>{" "}
+                              {review.comment ?? "Sem comentario."}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

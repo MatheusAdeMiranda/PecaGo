@@ -13,7 +13,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import RequestLoggingMiddleware, configure_logging, logger
-from app.routers import auth, deliveries, demo, notifications, orders, payment, products, stores
+from app.routers import auth, deliveries, demo, notifications, orders, payment, products, reviews, stores
 
 UPLOAD_DIR = Path(settings.upload_dir)
 
@@ -58,6 +58,7 @@ app.include_router(orders.router)
 app.include_router(deliveries.router)
 app.include_router(notifications.router)
 app.include_router(payment.router)
+app.include_router(reviews.router)
 app.include_router(demo.router)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
