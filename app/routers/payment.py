@@ -132,15 +132,26 @@ async def mercadopago_webhook(
 ) -> dict:
     body = await request.body()
 
-    # Valida assinatura quando o secret está configurado
+    # Valida assinatura quando o secret está configurado.
+    # Formato do header x-signature: "ts=<unix_timestamp>,v1=<hmac_hex>"
+    # Template MP: "id=<data_id>;request-id=<x-request-id>;ts=<ts>;"
     if settings.mercadopago_webhook_secret:
-        signed_template = f"id={x_request_id};request-id={x_request_id};ts={x_request_id};"
+        try:
+            body_data = json.loads(body)
+            data_id = str(body_data.get("data", {}).get("id", ""))
+            sig_parts = dict(part.split("=", 1) for part in x_signature.split(",") if "=" in part)
+            ts = sig_parts.get("ts", "")
+            v1 = sig_parts.get("v1", "")
+        except Exception:
+            raise HTTPException(status_code=401, detail="Invalid webhook signature")
+
+        signed_template = f"id={data_id};request-id={x_request_id};ts={ts};"
         expected = hmac.new(
             settings.mercadopago_webhook_secret.encode(),
             signed_template.encode(),
             hashlib.sha256,
         ).hexdigest()
-        if not hmac.compare_digest(x_signature, expected):
+        if not v1 or not hmac.compare_digest(v1, expected):
             raise HTTPException(status_code=401, detail="Invalid webhook signature")
 
     try:

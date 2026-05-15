@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -30,12 +32,13 @@ def create_access_token(subject: str) -> str:
 def generate_refresh_token() -> tuple[str, str]:
     """Returns (raw_token, hashed_token). Store the hash; send the raw to the client."""
     raw = secrets.token_urlsafe(48)
-    hashed = pwd_context.hash(raw)
+    # sha256 é suficiente para tokens aleatórios de alta entropia (não precisa de KDF)
+    hashed = hashlib.sha256(raw.encode()).hexdigest()
     return raw, hashed
 
 
 def verify_refresh_token(raw: str, hashed: str) -> bool:
-    return pwd_context.verify(raw, hashed)
+    return hmac.compare_digest(hashlib.sha256(raw.encode()).hexdigest(), hashed)
 
 
 def refresh_token_expiry() -> datetime:

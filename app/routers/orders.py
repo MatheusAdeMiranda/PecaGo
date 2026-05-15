@@ -105,10 +105,12 @@ def create_order(
 
     products = list(
         db.scalars(
-            select(Product).where(
+            select(Product)
+            .where(
                 Product.store_id == payload.store_id,
                 Product.id.in_(requested_quantities),
             )
+            .with_for_update()  # lock de linha: evita race condition na dedução de estoque
         )
     )
     products_by_id = {product.id: product for product in products}
