@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -12,7 +13,6 @@ from app.core.security import (
     hash_password,
     refresh_token_expiry,
     verify_password,
-    verify_refresh_token,
 )
 from app.deps import get_current_user, get_db
 from app.models import RefreshToken, User
@@ -65,23 +65,22 @@ def login(request: Request, payload: UserLogin, db: Session = Depends(get_db)) -
     return _issue_tokens(user, db)
 
 
-@router.post("/refresh", response_model=Token)
-@limiter.limit("20/minute")
-def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)) -> Token:
+def _find_refresh_token(raw_token: str, db: Session) -> RefreshToken | None:
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     now = datetime.now(timezone.utc)
-    candidates = db.scalars(
+    return db.scalar(
         select(RefreshToken).where(
+            RefreshToken.token_hash == token_hash,
             RefreshToken.revoked.is_(False),
             RefreshToken.expires_at > now,
         )
-    ).all()
+    )
 
-    matched: RefreshToken | None = None
-    for candidate in candidates:
-        if verify_refresh_token(payload.refresh_token, candidate.token_hash):
-            matched = candidate
-            break
 
+@router.post("/refresh", response_model=Token)
+@limiter.limit("20/minute")
+def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get_db)) -> Token:
+    matched = _find_refresh_token(payload.refresh_token, db)
     if not matched:
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
@@ -94,19 +93,10 @@ def refresh(request: Request, payload: RefreshRequest, db: Session = Depends(get
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(payload: RefreshRequest, db: Session = Depends(get_db)) -> None:
-    now = datetime.now(timezone.utc)
-    candidates = db.scalars(
-        select(RefreshToken).where(
-            RefreshToken.revoked.is_(False),
-            RefreshToken.expires_at > now,
-        )
-    ).all()
-
-    for candidate in candidates:
-        if verify_refresh_token(payload.refresh_token, candidate.token_hash):
-            candidate.revoked = True
-            db.commit()
-            return
+    matched = _find_refresh_token(payload.refresh_token, db)
+    if matched:
+        matched.revoked = True
+        db.commit()
 
 
 @router.get("/me", response_model=UserRead)

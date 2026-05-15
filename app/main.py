@@ -1,19 +1,31 @@
 from pathlib import Path
 
+import sentry_sdk
 from alembic import command
 from alembic.config import Config
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.limiter import limiter
 from app.core.logging import RequestLoggingMiddleware, configure_logging, logger
+from app.deps import get_db
 from app.routers import auth, deliveries, demo, notifications, orders, payment, products, reviews, stores
+
+if settings.sentry_dsn:
+    sentry_sdk.init(
+        dsn=settings.sentry_dsn,
+        environment=settings.environment,
+        traces_sample_rate=0.1,
+        integrations=[],  # FastApiIntegration e SqlalchemyIntegration são auto-detectados
+    )
 
 UPLOAD_DIR = Path(settings.upload_dir)
 
@@ -36,6 +48,9 @@ app = FastAPI(
     title="PecaGo",
     description="API MVP para marketplace de autopecas com entrega sob demanda.",
     version="0.1.0",
+    docs_url="/docs" if settings.debug else None,
+    redoc_url="/redoc" if settings.debug else None,
+    openapi_url="/openapi.json" if settings.debug else None,
 )
 
 app.state.limiter = limiter
@@ -88,5 +103,15 @@ def console_page() -> FileResponse:
 
 
 @app.get("/health")
-def healthcheck() -> dict[str, str]:
-    return {"status": "ok", "service": "pecago"}
+def healthcheck(db: Session = Depends(get_db)) -> dict:
+    try:
+        db.execute(text("SELECT 1"))
+        db_status = "ok"
+    except Exception:
+        db_status = "error"
+    return {
+        "status": "ok" if db_status == "ok" else "degraded",
+        "service": "pecago",
+        "environment": settings.environment,
+        "database": db_status,
+    }
