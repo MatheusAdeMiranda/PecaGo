@@ -1,8 +1,13 @@
+from typing import Literal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "PecaGo"
+    environment: Literal["development", "staging", "production"] = "development"
+    debug: bool = True
+
     database_url: str = "sqlite:///./autoparts_mvp.db"
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 30
