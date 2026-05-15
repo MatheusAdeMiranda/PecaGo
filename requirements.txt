@@ -12,3 +12,4 @@ httpx==0.28.1
 mercadopago==2.3.0
 slowapi==0.1.9
 structlog==25.3.0
+sentry-sdk[fastapi]==2.60.0
