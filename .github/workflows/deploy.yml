@@ -53,15 +53,19 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-  # ------------------------------------------------------------
-  # deploy-railway:
-  #   needs: build-and-push
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     # Será configurado na Fase 3.3 — Deploy Inicial
-  #     # Opção A (Railway pull from GHCR): configurar no dashboard do Railway
-  #     # Opção B (railway CLI):
-  #     #   - uses: railwayapp/railway-action@v1
-  #     #     with:
-  #     #       railway_token: ${{ secrets.RAILWAY_TOKEN }}
-  # ------------------------------------------------------------
+  deploy-railway:
+    name: Deploy Railway
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy
+        run: railway up --service api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}

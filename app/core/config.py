@@ -1,5 +1,6 @@
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -9,6 +10,14 @@ class Settings(BaseSettings):
     debug: bool = True
 
     database_url: str = "sqlite:///./autoparts_mvp.db"
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def normalize_database_url(cls, v: str) -> str:
+        # Railway fornece postgresql:// mas psycopg3 exige postgresql+psycopg://
+        if isinstance(v, str) and v.startswith("postgresql://"):
+            return v.replace("postgresql://", "postgresql+psycopg://", 1)
+        return v
     secret_key: str = "change-me"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
